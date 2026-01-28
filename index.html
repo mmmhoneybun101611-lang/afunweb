@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Lock</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        .ip-button {
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            border: none;
+            border-radius: 15px;
+            padding: 30px 60px;
+            font-size: 48px;
+            font-weight: bold;
+            color: #00ff88;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+        }
+
+        .ip-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(145deg, #34495e, #2c3e50);
+        }
+
+        .ip-button:active {
+            transform: translateY(-2px);
+        }
+
+        .lock-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .lock-overlay.active {
+            display: flex;
+        }
+
+        .lock-panel {
+            background: #2c3e50;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .lock-title {
+            color: #00ff88;
+            font-size: 32px;
+            margin-bottom: 30px;
+            font-weight: bold;
+            letter-spacing: 4px;
+        }
+
+        .code-display {
+            background: #1a252f;
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            font-size: 36px;
+            color: #00ff88;
+            letter-spacing: 15px;
+            min-height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Courier New', monospace;
+        }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .key {
+            background: #34495e;
+            border: 2px solid #475a6e;
+            border-radius: 10px;
+            padding: 20px;
+            font-size: 28px;
+            color: #ecf0f1;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: bold;
+        }
+
+        .key:hover {
+            background: #475a6e;
+            transform: scale(1.05);
+        }
+
+        .key:active {
+            transform: scale(0.95);
+            background: #2c3e50;
+        }
+
+        .key.zero {
+            grid-column: 2;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .action-btn {
+            background: #f39c12;
+            border: none;
+            border-radius: 10px;
+            padding: 15px 40px;
+            font-size: 18px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .action-btn:active {
+            transform: translateY(0);
+        }
+
+        .success-message {
+            display: none;
+            color: #00ff88;
+            font-size: 24px;
+            margin-top: 20px;
+            font-weight: bold;
+            animation: pulse 0.5s ease;
+        }
+
+        .error-message {
+            display: none;
+            color: #e74c3c;
+            font-size: 20px;
+            margin-top: 20px;
+            font-weight: bold;
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .unlocked-content {
+            display: none;
+            text-align: center;
+            color: white;
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .unlocked-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .exit-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #e74c3c;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 28px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+            z-index: 100;
+        }
+
+        .exit-button:hover {
+            background: #c0392b;
+            transform: rotate(90deg) scale(1.1);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
+        }
+
+        .exit-button:active {
+            transform: rotate(90deg) scale(0.95);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .unlocked-content h2 {
+            font-size: 48px;
+            color: #00ff88;
+            margin-bottom: 20px;
+        }
+
+        .unlocked-content p {
+            font-size: 24px;
+        }
+
+        .info-display {
+            background: #1a252f;
+            border: 2px solid #00ff88;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+            text-align: left;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .info-display h3 {
+            color: #00ff88;
+            font-size: 28px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .visitor-log {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            background: #2c3e50;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #00ff88;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .log-entry-clickable {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding-right: 10px;
+        }
+
+        .log-entry-clickable:hover {
+            opacity: 0.8;
+        }
+
+        .log-entry-clickable:active {
+            transform: scale(0.98);
+        }
+
+        .delete-button {
+            background: #e74c3c;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 18px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: bold;
+            flex-shrink: 0;
+            min-width: 45px;
+        }
+
+        .delete-button:hover {
+            background: #c0392b;
+            transform: scale(1.1);
+        }
+
+        .delete-button:active {
+            transform: scale(0.95);
+        }
+
+        .log-main-info {
+            flex: 1;
+        }
+
+        .log-date {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .log-ip {
+            color: #ecf0f1;
+            font-size: 18px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .log-arrow {
+            color: #00ff88;
+            font-size: 24px;
+            margin-left: 15px;
+        }
+
+        .detail-panel {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a252f;
+            border: 3px solid #00ff88;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 2000;
+            animation: slideUp 0.3s ease;
+        }
+
+        .detail-panel.active {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -40%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        .detail-panel h3 {
+            color: #00ff88;
+            font-size: 28px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .close-detail {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #e74c3c;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1;
+        }
+
+        .close-detail:hover {
+            background: #c0392b;
+            transform: rotate(90deg);
+        }
+
+        .detail-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1999;
+        }
+
+        .detail-overlay.active {
+            display: block;
+        }
+
+        .info-item {
+            background: #2c3e50;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #00ff88;
+        }
+
+        .info-label {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            color: #ecf0f1;
+            font-size: 18px;
+            word-break: break-all;
+        }
+
+        .loading {
+            color: #f39c12;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper" id="mainWrapper">
+        <div class="container" id="container">
+            <button class="ip-button" id="ipButton">IP</button>
+        </div>
+
+        <div class="unlocked-content" id="unlockedContent">
+            <button class="exit-button" id="exitButton">✕</button>
+            <h2>✓ ACCESS GRANTED</h2>
+            <p>IP Access Log</p>
+            
+            <div class="info-display">
+                <h3>📋 VISITOR LOG</h3>
+                <div id="visitorLog" class="visitor-log">
+                    <p class="loading">Loading visitor logs...</p>
+                </div>
+            </div>
+            
+            <div class="detail-panel" id="detailPanel">
+                <button class="close-detail" id="closeDetail">✕</button>
+                <h3>🔍 VISITOR DETAILS</h3>
+                <div class="info-item">
+                    <div class="info-label">IP Address</div>
+                    <div class="info-value" id="detailIp">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">City</div>
+                    <div class="info-value" id="detailCity">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">State / Region</div>
+                    <div class="info-value" id="detailState">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Country</div>
+                    <div class="info-value" id="detailCountry">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Location (Lat, Long)</div>
+                    <div class="info-value" id="detailLocation">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Device Type</div>
+                    <div class="info-value" id="detailDevice">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Timestamp</div>
+                    <div class="info-value" id="detailTimestamp">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="detail-overlay" id="detailOverlay"></div>
+
+    <div class="lock-overlay" id="lockOverlay">
+        <div class="lock-panel">
+            <div class="lock-title">ENTER ACCESS CODE</div>
+            <div class="code-display" id="codeDisplay">••••</div>
+            
+            <div class="keypad">
+                <button class="key" data-num="1">1</button>
+                <button class="key" data-num="2">2</button>
+                <button class="key" data-num="3">3</button>
+                <button class="key" data-num="4">4</button>
+                <button class="key" data-num="5">5</button>
+                <button class="key" data-num="6">6</button>
+                <button class="key" data-num="7">7</button>
+                <button class="key" data-num="8">8</button>
+                <button class="key" data-num="9">9</button>
+                <button class="key zero" data-num="0">0</button>
+            </div>
+
+            <div class="action-buttons">
+                <button class="action-btn clear" id="clearBtn">CLEAR</button>
+            </div>
+
+            <div class="success-message" id="successMsg">ACCESS GRANTED ✓</div>
+            <div class="error-message" id="errorMsg">INCORRECT CODE ✗</div>
+        </div>
+    </div>
+
+    <script>
+        const ipButton = document.getElementById('ipButton');
+        const lockOverlay = document.getElementById('lockOverlay');
+        const codeDisplay = document.getElementById('codeDisplay');
+        const clearBtn = document.getElementById('clearBtn');
+        const successMsg = document.getElementById('successMsg');
+        const errorMsg = document.getElementById('errorMsg');
+        const unlockedContent = document.getElementById('unlockedContent');
+        const container = document.querySelector('.container');
+        const keys = document.querySelectorAll('.key');
+        const visitorLog = document.getElementById('visitorLog');
+        const detailPanel = document.getElementById('detailPanel');
+        const detailOverlay = document.getElementById('detailOverlay');
+        const closeDetail = document.getElementById('closeDetail');
+        const exitButton = document.getElementById('exitButton');
+
+        const CORRECT_CODE = '2468';
+        let currentCode = '';
+        let isUnlocked = false;
+        let visitorData = {};
+
+        // Exit button functionality
+        exitButton.addEventListener('click', function() {
+            unlockedContent.classList.remove('active');
+            container.style.display = 'block';
+            isUnlocked = false;
+        });
+
+        // Get device type
+        function getDeviceType() {
+            const ua = navigator.userAgent;
+            if (/Mobile|Android|iPhone|iPod/.test(ua)) {
+                return 'Mobile';
+            } else if (/iPad|Tablet/.test(ua)) {
+                return 'Tablet';
+            } else {
+                return 'Desktop';
+            }
+        }
+
+        // Fetch IP and location data
+        function fetchVisitorInfo() {
+            const device = getDeviceType();
+            
+            const apis = [
+                {
+                    name: 'ipapi.is',
+                    url: 'https://api.ipapi.is/',
+                    parse: function(data) {
+                        return {
+                            ip: data.ip,
+                            city: (data.location && data.location.city) || 'Not available',
+                            state: (data.location && data.location.state) || 'Not available',
+                            country: (data.location && data.location.country) || 'Not available',
+                            latitude: (data.location && data.location.latitude) || 'N/A',
+                            longitude: (data.location && data.location.longitude) || 'N/A'
+                        };
+                    }
+                },
+                {
+                    name: 'ipwhois.app',
+                    url: 'https://ipwhois.app/json/',
+                    parse: function(data) {
+                        return {
+                            ip: data.ip,
+                            city: data.city || 'Not available',
+                            state: data.region || 'Not available',
+                            country: data.country || 'Not available',
+                            latitude: data.latitude || 'N/A',
+                            longitude: data.longitude || 'N/A'
+                        };
+                    }
+                },
+                {
+                    name: 'freeipapi.com',
+                    url: 'https://freeipapi.com/api/json',
+                    parse: function(data) {
+                        return {
+                            ip: data.ipAddress,
+                            city: data.cityName || 'Not available',
+                            state: data.regionName || 'Not available',
+                            country: data.countryName || 'Not available',
+                            latitude: data.latitude || 'N/A',
+                            longitude: data.longitude || 'N/A'
+                        };
+                    }
+                },
+                {
+                    name: 'ipapi.co',
+                    url: 'https://ipapi.co/json/',
+                    parse: function(data) {
+                        return {
+                            ip: data.ip,
+                            city: data.city || 'Not available',
+                            state: data.region || 'Not available',
+                            country: data.country_name || 'Not available',
+                            latitude: data.latitude || 'N/A',
+                            longitude: data.longitude || 'N/A'
+                        };
+                    }
+                }
+            ];
+
+            function tryNextAPI(index) {
+                if (index >= apis.length) {
+                    var fallbackData = {
+                        ip: 'Unable to fetch',
+                        city: 'Not available',
+                        state: 'Not available',
+                        country: 'Not available',
+                        latitude: 'N/A',
+                        longitude: 'N/A'
+                    };
+                    
+                    visitorData = {
+                        ip: fallbackData.ip,
+                        city: fallbackData.city,
+                        state: fallbackData.state,
+                        country: fallbackData.country,
+                        latitude: fallbackData.latitude,
+                        longitude: fallbackData.longitude,
+                        location: fallbackData.latitude + ', ' + fallbackData.longitude,
+                        device: device,
+                        timestamp: new Date().toLocaleString(),
+                        date: new Date().toLocaleDateString(),
+                        time: new Date().toLocaleTimeString(),
+                        fullDate: new Date().toISOString()
+                    };
+                    return Promise.resolve(visitorData);
+                }
+
+                console.log('Trying API ' + (index + 1) + '/' + apis.length + ': ' + apis[index].name + '...');
+                
+                return fetch(apis[index].url)
+                    .then(function(response) {
+                        if (!response.ok) throw new Error('API failed');
+                        return response.json();
+                    })
+                    .then(function(data) {
+                        var ipData = apis[index].parse(data);
+                        console.log('✓ Success with ' + apis[index].name);
+                        
+                        visitorData = {
+                            ip: ipData.ip,
+                            city: ipData.city,
+                            state: ipData.state,
+                            country: ipData.country,
+                            latitude: ipData.latitude,
+                            longitude: ipData.longitude,
+                            location: ipData.latitude + ', ' + ipData.longitude,
+                            device: device,
+                            timestamp: new Date().toLocaleString(),
+                            date: new Date().toLocaleDateString(),
+                            time: new Date().toLocaleTimeString(),
+                            fullDate: new Date().toISOString()
+                        };
+                        
+                        return visitorData;
+                    })
+                    .catch(function(error) {
+                        console.error('✗ ' + apis[index].name + ' failed:', error.message);
+                        return tryNextAPI(index + 1);
+                    });
+            }
+
+            return tryNextAPI(0);
+        }
+
+        // Display visitor logs
+        function displayVisitorLogs() {
+            const savedVisits = JSON.parse(localStorage.getItem('ipVisitorLogs') || '[]');
+            
+            if (savedVisits.length === 0) {
+                visitorLog.innerHTML = '<p class="loading">No visits recorded yet.</p>';
+                return;
+            }
+
+            savedVisits.sort(function(a, b) {
+                return new Date(b.fullDate || b.timestamp) - new Date(a.fullDate || a.timestamp);
+            });
+
+            visitorLog.innerHTML = '';
+            
+            savedVisits.forEach(function(visit, index) {
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                
+                const clickableArea = document.createElement('div');
+                clickableArea.className = 'log-entry-clickable';
+                clickableArea.innerHTML = '<div class="log-main-info"><div class="log-date">' + visit.date + ' at ' + visit.time + '</div><div class="log-ip">' + visit.ip + ' - ' + visit.city + ', ' + visit.state + '</div></div><div class="log-arrow">›</div>';
+                clickableArea.addEventListener('click', function() {
+                    showDetailPanel(visit);
+                });
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-button';
+                deleteBtn.innerHTML = '🗑️';
+                deleteBtn.title = 'Delete this entry';
+                deleteBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    deleteVisit(index);
+                });
+                
+                logEntry.appendChild(clickableArea);
+                logEntry.appendChild(deleteBtn);
+                visitorLog.appendChild(logEntry);
+            });
+        }
+
+        // Delete a visit
+        function deleteVisit(index) {
+            const savedVisits = JSON.parse(localStorage.getItem('ipVisitorLogs') || '[]');
+            savedVisits.splice(index, 1);
+            localStorage.setItem('ipVisitorLogs', JSON.stringify(savedVisits));
+            displayVisitorLogs();
+        }
+
+        // Show detail panel
+        function showDetailPanel(visit) {
+            document.getElementById('detailIp').textContent = visit.ip || 'Not available';
+            document.getElementById('detailCity').textContent = visit.city || 'Not available';
+            document.getElementById('detailState').textContent = visit.state || 'Not available';
+            document.getElementById('detailCountry').textContent = visit.country || 'Not available';
+            document.getElementById('detailLocation').textContent = visit.location || 'Not available';
+            document.getElementById('detailDevice').textContent = visit.device || 'Not available';
+            document.getElementById('detailTimestamp').textContent = visit.timestamp || 'Not available';
+            
+            detailPanel.classList.add('active');
+            detailOverlay.classList.add('active');
+        }
+
+        // Close detail panel
+        function closeDetailPanel() {
+            detailPanel.classList.remove('active');
+            detailOverlay.classList.remove('active');
+        }
+
+        closeDetail.addEventListener('click', closeDetailPanel);
+        detailOverlay.addEventListener('click', closeDetailPanel);
+
+        // Save visitor data
+        function saveVisitorData() {
+            const savedVisits = JSON.parse(localStorage.getItem('ipVisitorLogs') || '[]');
+            savedVisits.push(visitorData);
+            localStorage.setItem('ipVisitorLogs', JSON.stringify(savedVisits));
+            console.log('Visitor data saved:', visitorData);
+        }
+
+        // Initialize
+        console.log('Fetching visitor information...');
+        fetchVisitorInfo().then(function() {
+            console.log('Visitor info fetched successfully');
+            saveVisitorData();
+        });
+
+        // Open lock panel
+        ipButton.addEventListener('click', function() {
+            if (!isUnlocked) {
+                lockOverlay.classList.add('active');
+                resetInput();
+            }
+        });
+
+        // Keypad
+        keys.forEach(function(key) {
+            key.addEventListener('click', function() {
+                if (currentCode.length < 4) {
+                    currentCode += key.dataset.num;
+                    updateDisplay();
+                    
+                    if (currentCode.length === 4) {
+                        setTimeout(checkCode, 300);
+                    }
+                }
+            });
+        });
+
+        clearBtn.addEventListener('click', resetInput);
+
+        function updateDisplay() {
+            codeDisplay.textContent = currentCode.padEnd(4, '•');
+        }
+
+        function resetInput() {
+            currentCode = '';
+            codeDisplay.textContent = '••••';
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+        }
+
+        function checkCode() {
+            if (currentCode === CORRECT_CODE) {
+                successMsg.style.display = 'block';
+                errorMsg.style.display = 'none';
+                
+                setTimeout(function() {
+                    lockOverlay.classList.remove('active');
+                    isUnlocked = true;
+                    container.style.display = 'none';
+                    unlockedContent.classList.add('active');
+                    displayVisitorLogs();
+                }, 1000);
+            } else {
+                errorMsg.style.display = 'block';
+                successMsg.style.display = 'none';
+                
+                setTimeout(function() {
+                    resetInput();
+                }, 1500);
+            }
+        }
+    </script>
+</body>
+</html>
